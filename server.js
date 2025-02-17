@@ -47,16 +47,28 @@ app.get("/lactancia", async (req, res) => {
 app.post("/lactancia", async (req, res) => {
     try {
         const { tipo, tiempo, cantidad, fecha_hora } = req.body;
+
+        // ✅ Validar que los datos obligatorios están presentes
+        if (!tipo || !fecha_hora) {
+            return res.status(400).json({ error: "El tipo y la fecha/hora son obligatorios" });
+        }
+
+        // ✅ Si `tiempo` está vacío o es una cadena vacía, lo convertimos a `null`
+        const tiempoFinal = tiempo && tiempo.trim() !== "" ? tiempo : null;
+        const cantidadFinal = cantidad && cantidad.trim() !== "" ? cantidad : null;
+
         const result = await pool.query(
             `INSERT INTO lactancia (tipo, tiempo, cantidad, fecha_hora) VALUES ($1, $2, $3, $4) RETURNING *`,
-            [tipo, tiempo, cantidad, fecha_hora]
+            [tipo, tiempoFinal, cantidadFinal, fecha_hora]
         );
+        
         res.json(result.rows[0]);
     } catch (error) {
         console.error("❌ Error en POST /lactancia:", error);
-        res.status(500).json({ error: "Error registrando lactancia" });
+        res.status(500).json({ error: "Error interno al registrar lactancia" });
     }
 });
+
 
 // ✅ EDITAR REGISTRO DE LACTANCIA
 app.put("/lactancia/:id", async (req, res) => {
