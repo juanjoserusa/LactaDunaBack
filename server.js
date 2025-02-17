@@ -100,7 +100,7 @@ app.delete("/lactancia/:id", async (req, res) => {
 
 
 // **TABLA PAÑALES**
-app.get("/pañales", async (req, res) => {
+app.get("/panales", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM pañales ORDER BY fecha_hora DESC");
         res.json(result.rows);
@@ -110,7 +110,7 @@ app.get("/pañales", async (req, res) => {
     }
 });
 
-app.post("/pañales", async (req, res) => {
+app.post("/panales", async (req, res) => {
     try {
         const { tipo, fecha_hora } = req.body;
         const result = await pool.query(
@@ -125,7 +125,7 @@ app.post("/pañales", async (req, res) => {
 });
 
 // ✅ EDITAR REGISTRO DE PAÑALES
-app.put("/pañales/:id", async (req, res) => {
+app.put("/panales/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const { tipo, fecha_hora } = req.body;
@@ -141,7 +141,7 @@ app.put("/pañales/:id", async (req, res) => {
 });
 
 // ✅ ELIMINAR REGISTRO DE PAÑALES
-app.delete("/pañales/:id", async (req, res) => {
+app.delete("/panales/:id", async (req, res) => {
     try {
         const { id } = req.params;
         await pool.query(`DELETE FROM pañales WHERE id=$1`, [id]);
@@ -153,12 +153,12 @@ app.delete("/pañales/:id", async (req, res) => {
 });
 
 // **TABLAS BAÑOS Y VITAMINA D (MISMA LÓGICA PARA EDITAR Y ELIMINAR)**
-app.get("/baños", async (req, res) => {
+app.get("/banos", async (req, res) => {
     const result = await pool.query("SELECT * FROM baños ORDER BY fecha_hora DESC");
     res.json(result.rows);
 });
 
-app.post("/baños", async (req, res) => {
+app.post("/banos", async (req, res) => {
     const { fecha_hora } = req.body;
     const result = await pool.query(
         `INSERT INTO baños (fecha_hora) VALUES ($1) RETURNING *`,
@@ -167,7 +167,7 @@ app.post("/baños", async (req, res) => {
     res.json(result.rows[0]);
 });
 
-app.delete("/baños/:id", async (req, res) => {
+app.delete("/banos/:id", async (req, res) => {
     const { id } = req.params;
     await pool.query(`DELETE FROM baños WHERE id=$1`, [id]);
     res.json({ message: "Registro de baño eliminado correctamente" });
