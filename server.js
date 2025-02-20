@@ -279,14 +279,15 @@ app.get("/peso_bebe", async (req, res) => {
 app.put("/peso_bebe/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { fecha, peso } = req.body;
+        let { fecha, peso } = req.body;
 
         if (!fecha || !peso) {
             return res.status(400).json({ error: "La fecha y el peso son obligatorios" });
         }
 
+        // Convertir fecha a TIMESTAMP sin modificar la zona horaria
         const result = await pool.query(
-            `UPDATE peso_bebe SET fecha=$1, peso=$2 WHERE id=$3 RETURNING *`,
+            `UPDATE peso_bebe SET fecha = $1, peso = $2 WHERE id = $3 RETURNING *`,
             [fecha, peso, id]
         );
 
@@ -313,32 +314,22 @@ app.post("/peso_bebe", async (req, res) => {
     }
 });
 
-app.put("/peso_bebe/:id", async (req, res) => {
+app.delete("/peso_bebe/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        let { fecha, peso } = req.body;
 
-        if (!fecha || !peso) {
-            return res.status(400).json({ error: "La fecha y el peso son obligatorios" });
-        }
+        const result = await pool.query(`DELETE FROM peso_bebe WHERE id=$1 RETURNING *`, [id]);
 
-        // Convertir fecha a TIMESTAMP sin modificar la zona horaria
-        const result = await pool.query(
-            `UPDATE peso_bebe SET fecha = $1, peso = $2 WHERE id = $3 RETURNING *`,
-            [fecha, peso, id]
-        );
-
-        if (result.rows.length === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ error: "Registro de peso no encontrado" });
         }
 
-        res.json(result.rows[0]);
+        res.json({ message: "Registro de peso eliminado correctamente" });
     } catch (error) {
-        console.error("❌ Error en PUT /peso_bebe:", error);
-        res.status(500).json({ error: "Error actualizando el registro de peso del bebé" });
+        console.error("❌ Error en DELETE /peso_bebe:", error);
+        res.status(500).json({ error: "Error eliminando el registro de peso del bebé" });
     }
 });
-
 
 
 // ✅ TABLA CITAS DEL BEBÉ
