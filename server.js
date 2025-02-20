@@ -124,6 +124,31 @@ app.post("/panales", async (req, res) => {
     }
 });
 
+app.put("/panales/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tipo, fecha_hora } = req.body;
+
+        if (!tipo || !fecha_hora) {
+            return res.status(400).json({ error: "El tipo y la fecha/hora son obligatorios" });
+        }
+
+        const result = await pool.query(
+            `UPDATE "pañales" SET tipo=$1, fecha_hora=$2 WHERE id=$3 RETURNING *`,
+            [tipo, fecha_hora, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Registro no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /panales:", error);
+        res.status(500).json({ error: "Error actualizando el registro de pañales" });
+    }
+});
+
 app.delete("/panales/:id", async (req, res) => {
     try {
         const { id } = req.params;
