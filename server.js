@@ -208,6 +208,32 @@ app.post("/vitamina_d", async (req, res) => {
     res.json(result.rows[0]);
 });
 
+app.put("/vitamina_d/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fecha_hora } = req.body;
+
+        if (!fecha_hora) {
+            return res.status(400).json({ error: "La fecha y hora son obligatorias" });
+        }
+
+        const result = await pool.query(
+            `UPDATE vitamina_d SET fecha_hora=$1 WHERE id=$2 RETURNING *`,
+            [fecha_hora, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Registro no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /vitamina_d:", error);
+        res.status(500).json({ error: "Error actualizando el registro de vitamina D" });
+    }
+});
+
+
 app.delete("/vitamina_d/:id", async (req, res) => {
     const { id } = req.params;
     await pool.query(`DELETE FROM vitamina_d WHERE id=$1`, [id]);
