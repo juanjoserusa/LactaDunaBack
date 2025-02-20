@@ -181,6 +181,31 @@ app.post("/banos", async (req, res) => {
         res.status(500).json({ error: "Error registrando baño" });
     }
 });
+app.put("/banos/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fecha_hora } = req.body;
+
+        if (!fecha_hora) {
+            return res.status(400).json({ error: "La fecha y hora son obligatorias" });
+        }
+
+        const result = await pool.query(
+            `UPDATE baños SET fecha_hora=$1 WHERE id=$2 RETURNING *`,
+            [fecha_hora, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Registro de baño no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /banos:", error);
+        res.status(500).json({ error: "Error actualizando el registro de baño" });
+    }
+});
+
 
 app.delete("/banos/:id", async (req, res) => {
     try {
@@ -251,6 +276,32 @@ app.get("/peso_bebe", async (req, res) => {
     }
 });
 
+app.put("/peso_bebe/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fecha, peso } = req.body;
+
+        if (!fecha || !peso) {
+            return res.status(400).json({ error: "La fecha y el peso son obligatorios" });
+        }
+
+        const result = await pool.query(
+            `UPDATE peso_bebe SET fecha=$1, peso=$2 WHERE id=$3 RETURNING *`,
+            [fecha, peso, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Registro de peso no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /peso_bebe:", error);
+        res.status(500).json({ error: "Error actualizando el registro de peso del bebé" });
+    }
+});
+
+
 app.post("/peso_bebe", async (req, res) => {
     try {
         const { fecha, peso } = req.body;
@@ -261,6 +312,24 @@ app.post("/peso_bebe", async (req, res) => {
         res.status(500).json({ error: "Error registrando peso" });
     }
 });
+
+app.delete("/peso_bebe/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(`DELETE FROM peso_bebe WHERE id=$1 RETURNING *`, [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Registro de peso no encontrado" });
+        }
+
+        res.json({ message: "Registro de peso eliminado correctamente" });
+    } catch (error) {
+        console.error("❌ Error en DELETE /peso_bebe:", error);
+        res.status(500).json({ error: "Error eliminando el registro de peso del bebé" });
+    }
+});
+
 
 // ✅ TABLA CITAS DEL BEBÉ
 app.get("/citas_bebe", async (req, res) => {
@@ -283,6 +352,50 @@ app.post("/citas_bebe", async (req, res) => {
         res.status(500).json({ error: "Error registrando cita" });
     }
 });
+
+app.put("/citas_bebe/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fecha_hora, descripcion } = req.body;
+
+        if (!fecha_hora || !descripcion) {
+            return res.status(400).json({ error: "La fecha/hora y la descripción son obligatorias" });
+        }
+
+        const result = await pool.query(
+            `UPDATE citas_bebe SET fecha_hora=$1, descripcion=$2 WHERE id=$3 RETURNING *`,
+            [fecha_hora, descripcion, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Cita no encontrada" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /citas_bebe:", error);
+        res.status(500).json({ error: "Error actualizando la cita del bebé" });
+    }
+});
+
+app.delete("/citas_bebe/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(`DELETE FROM citas_bebe WHERE id=$1 RETURNING *`, [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Cita no encontrada" });
+        }
+
+        res.json({ message: "Cita eliminada correctamente" });
+    } catch (error) {
+        console.error("❌ Error en DELETE /citas_bebe:", error);
+        res.status(500).json({ error: "Error eliminando la cita del bebé" });
+    }
+});
+
+
 
 // ✅ ENDPOINT DE RECORDATORIOS
 app.get("/recordatorios", async (req, res) => {
