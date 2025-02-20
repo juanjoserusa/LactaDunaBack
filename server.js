@@ -400,21 +400,31 @@ app.delete("/citas_bebe/:id", async (req, res) => {
 // ✅ ENDPOINT DE RECORDATORIOS
 app.get("/recordatorios", async (req, res) => {
     try {
+        // 📌 Última toma de lactancia
         const lactancia = await pool.query("SELECT * FROM lactancia ORDER BY fecha_hora DESC LIMIT 1");
         const ultimaLactancia = lactancia.rows[0] || null;
 
-        // 🕒 Obtener última fecha de baño
+        // 📌 Último baño registrado
         const banos = await pool.query("SELECT fecha_hora FROM baños ORDER BY fecha_hora DESC LIMIT 1");
         const ultimoBaño = banos.rows.length ? new Date(banos.rows[0].fecha_hora) : null;
 
-        // 🕒 Obtener última fecha de vitamina D
+        // 📌 Última toma de Vitamina D
         const vitaminaD = await pool.query("SELECT fecha_hora FROM vitamina_d ORDER BY fecha_hora DESC LIMIT 1");
         const ultimaVitaminaD = vitaminaD.rows.length ? new Date(vitaminaD.rows[0].fecha_hora) : null;
 
-        // 📅 Calcular fecha de referencia (hace 2 días)
+        // 📌 Citas en los próximos 7 días
+        const citas = await pool.query(`
+            SELECT * FROM citas_bebe 
+            WHERE fecha_hora >= NOW() 
+            AND fecha_hora <= NOW() + INTERVAL '7 days'
+            ORDER BY fecha_hora ASC
+        `);
+        const citasProximas = citas.rows;
+
+        // 📅 Fecha de referencia para el baño (hace 2 días)
         const hoy = new Date();
         const fechaReferenciaBaño = new Date(hoy);
-        fechaReferenciaBaño.setDate(hoy.getDate() - 2); // Retroceder 2 días
+        fechaReferenciaBaño.setDate(hoy.getDate() - 2);
 
         // 📌 Determinar si se necesita un baño
         const necesitaBaño = !ultimoBaño || ultimoBaño < fechaReferenciaBaño;
@@ -425,13 +435,15 @@ app.get("/recordatorios", async (req, res) => {
         res.json({
             lactancia_ultima: ultimaLactancia || "No hay registros",
             necesita_baño: necesitaBaño,
-            necesita_vitamina_d: necesitaVitaminaD
+            necesita_vitamina_d: necesitaVitaminaD,
+            citas_proximas: citasProximas
         });
     } catch (error) {
         console.error("❌ Error en GET /recordatorios:", error);
         res.status(500).json({ error: "Error en recordatorios" });
     }
 });
+
 
 
 // ✅ Iniciar el servidor
