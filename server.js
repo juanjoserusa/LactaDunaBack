@@ -193,6 +193,27 @@ app.delete("/banos/:id", async (req, res) => {
     }
 });
 
+// ✅ TABLA VITAMINA D
+app.get("/vitamina_d", async (req, res) => {
+    const result = await pool.query("SELECT * FROM vitamina_d ORDER BY fecha_hora DESC");
+    res.json(result.rows);
+});
+
+app.post("/vitamina_d", async (req, res) => {
+    const { fecha_hora } = req.body;
+    const result = await pool.query(
+        `INSERT INTO vitamina_d (fecha_hora) VALUES ($1) RETURNING *`,
+        [fecha_hora]
+    );
+    res.json(result.rows[0]);
+});
+
+app.delete("/vitamina_d/:id", async (req, res) => {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM vitamina_d WHERE id=$1`, [id]);
+    res.json({ message: "Registro de vitamina D eliminado correctamente" });
+});
+
 // ✅ TABLA PESO DEL BEBÉ
 app.get("/peso_bebe", async (req, res) => {
     try {
