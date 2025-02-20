@@ -54,6 +54,40 @@ app.post("/lactancia", async (req, res) => {
     }
 });
 
+app.put("/lactancia/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tipo, tiempo, cantidad, fecha_hora } = req.body;
+
+        // Validar que se envíen los campos requeridos
+        if (!tipo || !fecha_hora) {
+            return res.status(400).json({ error: "El tipo y la fecha/hora son obligatorios" });
+        }
+
+        // Convertir valores vacíos a null
+        const tiempoFinal = tiempo ? parseInt(tiempo) : null;
+        const cantidadFinal = cantidad ? parseInt(cantidad) : null;
+
+        const result = await pool.query(
+            `UPDATE lactancia 
+             SET tipo = $1, tiempo = $2, cantidad = $3, fecha_hora = $4 
+             WHERE id = $5 
+             RETURNING *`,
+            [tipo, tiempoFinal, cantidadFinal, fecha_hora, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Registro de lactancia no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("❌ Error en PUT /lactancia:", error);
+        res.status(500).json({ error: "Error interno al actualizar lactancia" });
+    }
+});
+
+
 app.delete("/lactancia/:id", async (req, res) => {
     try {
         const { id } = req.params;
