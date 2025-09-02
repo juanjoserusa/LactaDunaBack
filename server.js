@@ -723,6 +723,23 @@ app.post("/recipes", async (req, res) => {
   }
 });
 
+app.delete("/exposures", async (req, res) => {
+  try {
+    const { date, foodId } = req.query; // YYYY-MM-DD y número
+    if (!date || !foodId) {
+      return res.status(400).json({ error: "date y foodId obligatorios" });
+    }
+    const { rowCount } = await pool.query(
+      `DELETE FROM exposure WHERE date=$1 AND food_id=$2`,
+      [date, +foodId]
+    );
+    res.json({ deleted: rowCount > 0 });
+  } catch (e) {
+    console.error("DELETE /exposures", e);
+    res.status(500).json({ error: "Error eliminando exposición" });
+  }
+});
+
 /* ================ RECORDATORIOS (sin baños/pañales) ================= */
 app.get("/recordatorios", async (req, res) => {
   try {
