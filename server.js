@@ -755,37 +755,109 @@ app.delete("/exposures", async (req, res) => {
 /* ================ RECORDATORIOS (sin baños/pañales) ================= */
 app.get("/recordatorios", async (req, res) => {
   try {
-    // Última lactancia
+    // ===== Utilidad para "fecha local Madrid" en formato YYYY-MM-DD =====
+    const toLocalYMD = (date) => {
+      const d = new Date(date);
+      const parts = new Intl.DateTimeFormat("es-ES", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+        .format(d) // "dd/mm/aaaa"
+        .split("/");
+      // -> YYYY-MM-DD
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    };
+    const todayYMD = toLocalYMD(new Date());
+
+    // ===== Última lactancia =====
     const lactancia = await pool.query(
       "SELECT * FROM lactancia ORDER BY fecha_hora DESC LIMIT 1"
     );
     const ultimaLactancia = lactancia.rows[0] || null;
 
-    // Vitamina D (día actual)
+    // ===== Vitamina D (evaluado en zona Madrid) =====
     const vitaminaD = await pool.query(
       "SELECT fecha_hora FROM vitamina_d ORDER BY fecha_hora DESC LIMIT 1"
     );
     const ultimaVitaminaD = vitaminaD.rows.length
-      ? new Date(vitaminaD.rows[0].fecha_hora)
+      ? vitaminaD.rows[0].fecha_hora
       : null;
 
-    // Citas próximos 7 días
+    const ultimaVitaminaDLocalYMD = ultimaVitaminaD
+      ? toLocalYMD(ultimaVitaminaD)
+      : null;
+
+    const necesitaVitaminaD =
+      !ultimaVitaminaDLocalYMD || ultimaVitaminaDLocalYMD !== todayYMD;
+
+    // ===== Citas próximos 7 días =====
     const citas = await pool.query(
       `
-        SELECT * FROM citas_bebe
-        WHERE fecha_hora >= NOW()
-          AND fecha_hora <= NOW() + INTERVAL '7 days'
-        ORDER BY fecha_hora ASC
+      SELECT * FROM citas_bebe
+      WHERE fecha_hora >= NOW()
+        AND fecha_hora <= NOW() + INTERVAL '7 days'
+      ORDER BY fecha_hora ASC
       `
     );
     const citasProximas = citas.rows;
 
-    const hoy = new Date();
+    // ===== Exposiciones que "tocan hoy" (Día 2/3 o Día 3/3) =====
+    // Estrategia:
+    // - Traemos 10 días para cubrir fines de semana/lag.
+    // - Agrupamos por alimento.
+    // - Si hubo exposición AYER y no hay HOY:
+    //     * Si también hubo ANTEAYER -> hoy es Día 3
+    //     * Si no -> hoy es Día 2
+    //
+    // NOTA: si ya hubo exposición HOY, no sugerimos nada para ese alimento.
+    const exposRaw = await pool.query(
+      `
+      SELECT e.food_id,
+             f.name AS food_name,
+             e.date::timestamptz AS ts
+      FROM exposures e
+      JOIN foods f ON f.id = e.food_id
+      WHERE e.date >= (CURRENT_DATE - INTERVAL '10 days')
+      ORDER BY e.food_id, e.date
+      `
+    );
 
-    const necesitaVitaminaD =
-      !ultimaVitaminaD || ultimaVitaminaD.toDateString() !== hoy.toDateString();
+    // Normalizamos a YMD en Madrid
+    const exByFood = new Map();
+    for (const row of exposRaw.rows) {
+      const key = row.food_id;
+      const ymd = toLocalYMD(row.ts);
+      if (!exByFood.has(key)) {
+        exByFood.set(key, { food_id: key, food_name: row.food_name, dates: new Set() });
+      }
+      exByFood.get(key).dates.add(ymd);
+    }
 
-    // Como quitamos "baños", lo dejamos siempre en false para no romper la Home.
+    const y = new Date(); // hoy
+    const yesterdayYMD = toLocalYMD(new Date(y.getTime() - 24 * 60 * 60 * 1000));
+    const twoDaysAgoYMD = toLocalYMD(new Date(y.getTime() - 48 * 60 * 60 * 1000));
+
+    const exposicionesHoy = [];
+    for (const { food_id, food_name, dates } of exByFood.values()) {
+      const hasToday = dates.has(todayYMD);
+      const hasYesterday = dates.has(yesterdayYMD);
+      const hasTwoDaysAgo = dates.has(twoDaysAgoYMD);
+
+      if (!hasToday && hasYesterday) {
+        const step = hasTwoDaysAgo ? 3 : 2;
+        const step_label = step === 3 ? "Día 3/3" : "Día 2/3";
+        exposicionesHoy.push({
+          food_id,
+          food_name,
+          step,
+          step_label,
+        });
+      }
+    }
+
+    // Como quitaste "baños", lo dejamos siempre en false para no romper la Home.
     const necesitaBaño = false;
 
     res.json({
@@ -793,12 +865,14 @@ app.get("/recordatorios", async (req, res) => {
       necesita_baño: necesitaBaño,
       necesita_vitamina_d: necesitaVitaminaD,
       citas_proximas: citasProximas,
+      exposiciones_hoy: exposicionesHoy, // <- NUEVO
     });
   } catch (error) {
     console.error("❌ Error en GET /recordatorios:", error);
     res.status(500).json({ error: "Error en recordatorios" });
   }
 });
+
 
 /* ================ BOOT ================= */
 const PORT = process.env.PORT || 3001;
