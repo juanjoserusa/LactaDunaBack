@@ -654,9 +654,10 @@ app.post("/checks", async (req, res) => {
 });
 
 /* ================ RECIPES ================= */
+/* ================ RECIPES ================= */
 app.get("/recipes", async (req, res) => {
   try {
-    const { suitableTo, foodId } = req.query;
+    const { suitableTo, foodId, include } = req.query;
     const params = [];
     const where = [];
 
@@ -672,7 +673,17 @@ app.get("/recipes", async (req, res) => {
     }
 
     const sql = `
-      SELECT r.*
+      SELECT
+        r.*,
+        COALESCE((
+          SELECT json_agg(
+                   json_build_object('id', f.id, 'name', f.name, 'category', f.category, 'allergen', f.allergen)
+                   ORDER BY f.name
+                 )
+          FROM recipe_food rf
+          JOIN food f ON f.id = rf.food_id
+          WHERE rf.recipe_id = r.id
+        ), '[]'::json) AS foods
       FROM recipe r
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
       ORDER BY r.suitable_from, r.title
@@ -684,6 +695,7 @@ app.get("/recipes", async (req, res) => {
     res.status(500).json({ error: "Error obteniendo recetas" });
   }
 });
+
 
 app.post("/recipes", async (req, res) => {
   const client = await pool.connect();
